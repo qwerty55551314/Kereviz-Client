@@ -139,6 +139,7 @@ public class Kereviz {
         moduleManager.modules.put(NoJumpDelay.class, new NoJumpDelay());
         moduleManager.modules.put(NoRotate.class, new NoRotate());
         moduleManager.modules.put(NoSlow.class, new NoSlow());
+        moduleManager.modules.put(WaterMLG.class, new WaterMLG());
         moduleManager.modules.put(ClickAssits.class, new ClickAssits());
         moduleManager.modules.put(Timer.class, new Timer());
         moduleManager.modules.put(SprintReset.class, new SprintReset());

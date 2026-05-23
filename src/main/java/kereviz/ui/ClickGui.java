@@ -72,6 +72,7 @@ public class ClickGui extends GuiScreen {
         movementModules.add(Kereviz.moduleManager.getModule(Eagle.class));
         movementModules.add(Kereviz.moduleManager.getModule(NoJumpDelay.class));
         movementModules.add(Kereviz.moduleManager.getModule(AntiVoid.class));
+        movementModules.add(Kereviz.moduleManager.getModule(WaterMLG.class));
 
         List<Module> renderModules = new ArrayList<>();
         renderModules.add(Kereviz.moduleManager.getModule(ESP.class));

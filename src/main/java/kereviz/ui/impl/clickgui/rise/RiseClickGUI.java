@@ -65,7 +65,7 @@ public class RiseClickGUI extends GuiScreen {
         map(Tab.COMBAT, "KillAura", "TargetStrafe", "NoHitDelay", "AntiFireball", "LagRange", "Refill",
                 "Criticals", "Displace", "ServerLag");
         map(Tab.MOVEMENT, "AntiAFK", "Fly", "FastBow", "Speed", "LongJump", "Sprint", "SafeWalk",
-                "Jesus", "NoFall", "NoSlow", "KeepSprint", "Eagle", "NoJumpDelay");
+                "Jesus", "NoFall", "NoSlow", "KeepSprint", "Eagle", "NoJumpDelay", "WaterMLG");
         map(Tab.PLAYER, "AutoHeal", "AutoTool", "ChestStealer", "InvManager", "InvWalk", "Scaffold",
                 "AutoBlockIn", "AutoSwap", "SpeedMine", "FastPlace", "MCF", "AntiDebuff", "FlagDetector",
                 "AutoGapple", "Gapple", "ThrowAura", "InventoryClicker");

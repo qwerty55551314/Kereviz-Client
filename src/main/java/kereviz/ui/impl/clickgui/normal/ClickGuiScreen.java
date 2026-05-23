@@ -75,7 +75,8 @@ public class ClickGuiScreen extends GuiScreen {
                 Kereviz.moduleManager.getModule(KeepSprint.class),
                 Kereviz.moduleManager.getModule(Eagle.class),
                 Kereviz.moduleManager.getModule(NoJumpDelay.class),
-                Kereviz.moduleManager.getModule(AntiVoid.class)
+                Kereviz.moduleManager.getModule(AntiVoid.class),
+                Kereviz.moduleManager.getModule(WaterMLG.class)
         );
 
         List<Module> renderModules = Arrays.asList(

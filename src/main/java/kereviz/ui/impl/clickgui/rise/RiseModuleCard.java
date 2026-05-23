@@ -12,6 +12,7 @@ import kereviz.property.properties.ModeProperty;
 import kereviz.property.properties.PercentProperty;
 import kereviz.property.properties.TextProperty;
 import kereviz.util.AnimationUtil;
+import kereviz.util.KeyBindUtil;
 import kereviz.util.RenderUtil;
 import kereviz.util.font.FontManager;
 import org.lwjgl.input.Keyboard;
@@ -170,7 +171,7 @@ public class RiseModuleCard {
         float right = (float) (x + cardWidth - 7);
 
         if (FontManager.productSans12 != null && bindingKey) {
-            String text = "Press a key";
+            String text = "Press key/mouse";
             float width = (float) FontManager.productSans12.getStringWidth(text);
             FontManager.productSans12.drawString(text, right - width, (float) y + 8,
                     System.currentTimeMillis() % 1000 < 500 ? RiseColors.TEXT.getRGB() : RiseColors.TEXT_TRINARY.getRGB());
@@ -196,6 +197,12 @@ public class RiseModuleCard {
     }
 
     public boolean click(int mouseX, int mouseY, int mouseButton) {
+        if (bindingKey) {
+            module.setKey(mouseButton - 100);
+            bindingKey = false;
+            return true;
+        }
+
         boolean overHeader = mouseX >= x && mouseX <= x + cardWidth && mouseY >= y && mouseY <= y + DEFAULT_HEIGHT;
         if (overHeader) {
             mouseDown = true;
@@ -255,7 +262,7 @@ public class RiseModuleCard {
     private String keyName() {
         int key = module.getKey();
         if (key == 0) return "";
-        String name = Keyboard.getKeyName(key);
+        String name = KeyBindUtil.getKeyName(key);
         return name == null ? "" : name;
     }
 

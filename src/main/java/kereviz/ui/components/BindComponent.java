@@ -43,18 +43,11 @@ public class BindComponent implements Component {
     }
 
     public void mouseDown(int x, int y, int button) {
-        if (this.isHovered(x, y) && button == 0 && this.parentModule.panelExpand) {
-            this.isBinding = !this.isBinding;
-        } else if (this.isBinding && this.parentModule.panelExpand) {
-            int keyIndex = button - 100;
-            
-            if (button == 0) {
-                this.isBinding = false;
-                return;
-            }
-            
-            this.parentModule.mod.setKey(keyIndex);
+        if (this.isBinding && this.parentModule.panelExpand) {
+            this.parentModule.mod.setKey(button - 100);
             this.isBinding = false;
+        } else if (this.isHovered(x, y) && button == 0 && this.parentModule.panelExpand) {
+            this.isBinding = true;
         }
     }
 
@@ -66,14 +59,14 @@ public class BindComponent implements Component {
     @Override
     public void keyTyped(char chatTyped, int keyCode) {
         if (this.isBinding) {
-            if (keyCode == 1) {
+            if (keyCode == Keyboard.KEY_ESCAPE) {
                 this.isBinding = false;
                 return;
             }
             
-            if (keyCode == 11) { 
+            if (keyCode == Keyboard.KEY_DELETE || keyCode == Keyboard.KEY_BACK || keyCode == Keyboard.KEY_0) {
                 if (this.parentModule.mod instanceof GuiModule) {
-                    this.parentModule.mod.setKey(54);
+                    this.parentModule.mod.setKey(Keyboard.KEY_RSHIFT);
                 } else {
                     this.parentModule.mod.setKey(0);
                 }

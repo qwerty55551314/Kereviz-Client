@@ -35,7 +35,7 @@ public class BindCommand extends Command {
             } else {
                 ChatUtil.sendFormatted(
                         String.format(
-                                "%sUsage: .%s <&omodule&r> <&okey&r>&r | .%s <&omodule&r> &onone&r | .%s &olist&r",
+                                "%sUsage: .%s <&omodule&r> <&okey/mouse&r>&r | .%s <&omodule&r> &onone&r | .%s &olist&r",
                                 Kereviz.clientName,
                                 args.get(0).toLowerCase(Locale.ROOT),
                                 args.get(0).toLowerCase(Locale.ROOT),
@@ -126,20 +126,25 @@ public class BindCommand extends Command {
             case "SCROLLCLICK":
                 return 2;
             case "MOUSE3":
+            case "M3":
             case "XBUTTON1":
             case "SIDEBUTTON1":
             case "BOTTOMSIDE":
                 return 3;
             case "MOUSE4":
+            case "M4":
             case "XBUTTON2":
             case "SIDEBUTTON2":
             case "TOPSIDE":
                 return 4;
             case "MOUSE5":
+            case "M5":
                 return 5;
             case "MOUSE6":
+            case "M6":
                 return 6;
             case "MOUSE7":
+            case "M7":
                 return 7;
             default:
                 return -1;

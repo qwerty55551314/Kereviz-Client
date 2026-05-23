@@ -76,6 +76,7 @@ public class ClickGui extends GuiScreen {
         List<Module> renderModules = new ArrayList<>();
         renderModules.add(Kereviz.moduleManager.getModule(ESP.class));
         renderModules.add(Kereviz.moduleManager.getModule(Chams.class));
+        renderModules.add(Kereviz.moduleManager.getModule(FreeLook.class));
         renderModules.add(Kereviz.moduleManager.getModule(FullBright.class));
         renderModules.add(Kereviz.moduleManager.getModule(Tracers.class));
         renderModules.add(Kereviz.moduleManager.getModule(NameTags.class));

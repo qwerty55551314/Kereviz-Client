@@ -73,7 +73,7 @@ public class RiseClickGUI extends GuiScreen {
                 "TargetESP", "TargetHUD", "Indicators", "BedESP", "ItemESP", "ViewClip", "NoHurtCam",
                 "HUD", "ChestESP", "Trajectories", "Radar", "FPScounter", "Fpscounter", "WaterMark",
                 "HitParticleEffects", "DynamicIsland", "ESP2D", "TeamHealthDisplay", "SeasonDisplay",
-                "Animations", "RenderFixes", "ClickGUI", "ClickGui");
+                "Animations", "RenderFixes", "FreeLook", "Freelook", "ClickGUI", "ClickGui");
         map(Tab.DISCORD, "RichPresence", "DiscordRPC", "DiscordRichPresence");
         map(Tab.EXPLOIT, "Disabler", "ClientSpoofer", "NoRotate", "AntiObfuscate", "Blink", "Timer",
                 "TimerRangev999", "AntiVoid", "FakeLag", "GhostHand", "BedNuker", "BedTracker");

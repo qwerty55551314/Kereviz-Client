@@ -81,6 +81,7 @@ public class ClickGuiScreen extends GuiScreen {
         List<Module> renderModules = Arrays.asList(
                 Kereviz.moduleManager.getModule(ESP.class),
                 Kereviz.moduleManager.getModule(Chams.class),
+                Kereviz.moduleManager.getModule(FreeLook.class),
                 Kereviz.moduleManager.getModule(FullBright.class),
                 Kereviz.moduleManager.getModule(Tracers.class),
                 Kereviz.moduleManager.getModule(NameTags.class),

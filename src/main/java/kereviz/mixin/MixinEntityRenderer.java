@@ -37,6 +37,16 @@ public abstract class MixinEntityRenderer {
     private Box<ItemStack> using = null;
     @Unique
     private Box<Integer> useCount = null;
+    @Unique
+    private Entity freelookEntity = null;
+    @Unique
+    private float freelookRotationYaw;
+    @Unique
+    private float freelookPrevRotationYaw;
+    @Unique
+    private float freelookRotationPitch;
+    @Unique
+    private float freelookPrevRotationPitch;
     @Shadow
     private Minecraft mc;
     @Shadow
@@ -82,6 +92,21 @@ public abstract class MixinEntityRenderer {
         if (this.useCount != null) {
             ((IAccessorEntityPlayer) this.mc.thePlayer).setItemInUseCount(this.useCount.value);
             this.useCount = null;
+        }
+    }
+
+    @Redirect(
+            method = {"updateCameraAndRender"},
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/entity/EntityPlayerSP;setAngles(FF)V"
+            )
+    )
+    private void setAngles(EntityPlayerSP player, float yaw, float pitch) {
+        if (Kereviz.moduleManager != null && FreeLook.isActive()) {
+            FreeLook.applyMouseDelta(yaw, pitch);
+        } else {
+            player.setAngles(yaw, pitch);
         }
     }
 
@@ -219,6 +244,48 @@ public abstract class MixinEntityRenderer {
         } else {
             return Kereviz.moduleManager.modules.get(ViewClip.class).isEnabled() ? (double) this.thirdPersonDistance : vec31.distanceTo(vec32);
         }
+    }
+
+    @Inject(
+            method = {"orientCamera"},
+            at = {@At("HEAD")}
+    )
+    private void orientFreelookCamera(float partialTicks, CallbackInfo callbackInfo) {
+        if (Kereviz.moduleManager == null || !FreeLook.isActive()) {
+            return;
+        }
+
+        Entity entity = this.mc.getRenderViewEntity();
+        if (entity == null) {
+            return;
+        }
+
+        this.freelookEntity = entity;
+        this.freelookRotationYaw = entity.rotationYaw;
+        this.freelookPrevRotationYaw = entity.prevRotationYaw;
+        this.freelookRotationPitch = entity.rotationPitch;
+        this.freelookPrevRotationPitch = entity.prevRotationPitch;
+
+        entity.rotationYaw = FreeLook.getCameraYaw();
+        entity.prevRotationYaw = FreeLook.getPrevCameraYaw();
+        entity.rotationPitch = FreeLook.getCameraPitch();
+        entity.prevRotationPitch = FreeLook.getPrevCameraPitch();
+    }
+
+    @Inject(
+            method = {"orientCamera"},
+            at = {@At("RETURN")}
+    )
+    private void restoreFreelookCamera(float partialTicks, CallbackInfo callbackInfo) {
+        if (this.freelookEntity == null) {
+            return;
+        }
+
+        this.freelookEntity.rotationYaw = this.freelookRotationYaw;
+        this.freelookEntity.prevRotationYaw = this.freelookPrevRotationYaw;
+        this.freelookEntity.rotationPitch = this.freelookRotationPitch;
+        this.freelookEntity.prevRotationPitch = this.freelookPrevRotationPitch;
+        this.freelookEntity = null;
     }
 
     @Redirect(

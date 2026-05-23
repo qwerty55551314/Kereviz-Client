@@ -38,6 +38,9 @@ public abstract class PlayerFileManager {
     }
 
     public void save() {
+        if (file.getParentFile() != null && !file.getParentFile().exists()) {
+            file.getParentFile().mkdirs();
+        }
         try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
             writer.print(String.join("\n", players));
         } catch (IOException e) {

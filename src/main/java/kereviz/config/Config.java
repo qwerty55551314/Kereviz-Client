@@ -2,6 +2,7 @@ package kereviz.config;
 
 import com.google.gson.*;
 import kereviz.Kereviz;
+import kereviz.management.PlayerFileManager;
 import kereviz.mixin.IAccessorMinecraft;
 import kereviz.module.Module;
 import kereviz.property.properties.ColorProperty;
@@ -13,9 +14,12 @@ import net.minecraft.client.Minecraft;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public class Config {
     private static final int KEREVIZ_GREEN = 0x14FF00;
+    private static final int FORMAT_VERSION = 2;
     public static Minecraft mc = Minecraft.getMinecraft();
     public static Gson gson = new GsonBuilder().setPrettyPrinting().create();
     public String name;
@@ -24,12 +28,9 @@ public class Config {
     public static String lastConfig;
 
     public Config(String name, boolean newConfig) {
-        this.name = name;
-        lastConfig = name;
-        if (name.equals("!") || name.equals("default")) {
-            this.name = "default";
-        }
-        this.file = new File("./config/Kereviz/", String.format("%s.json", this.name));
+        this.name = ClientFiles.normalizeConfigName(name);
+        lastConfig = this.name;
+        this.file = ClientFiles.configFile(this.name);
         try {
             file.getParentFile().mkdirs();
             if (newConfig) {
@@ -42,61 +43,27 @@ public class Config {
 
     public void load() {
         try {
-
             if (!file.exists()) {
                 ChatUtil.sendFormatted(String.format("%sConfig file not found (&c&o%s&r). Creating default config...&r", Kereviz.clientName, file.getName()));
                 save();
                 return;
             }
 
-            JsonElement parsed = new JsonParser().parse(new BufferedReader(new FileReader(file)));
+            JsonElement parsed;
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                parsed = new JsonParser().parse(reader);
+            }
             if (parsed == null || !parsed.isJsonObject()) {
                 ChatUtil.sendFormatted(String.format("%sInvalid config format (&c&o%s&r)&r", Kereviz.clientName, file.getName()));
                 return;
             }
 
             JsonObject jsonObject = parsed.getAsJsonObject();
-            for (Module module : Kereviz.moduleManager.modules.values()) {
-                JsonElement moduleObj = jsonObject.get(module.getName());
-                if (moduleObj != null && moduleObj.isJsonObject()) {
-                    JsonObject object = moduleObj.getAsJsonObject();
-
-                    ArrayList<Property<?>> list = Kereviz.propertyManager.properties.get(module.getClass());
-                    if (list != null) {
-                        for (Property<?> property : list) {
-                            if (object.has(property.getName())) {
-                                try {
-                                    property.read(object);
-                                    migrateKerevizAccent(module, property);
-                                } catch (Exception e) {
-                                    ((IAccessorMinecraft) mc).getLogger().warn(String.format("Failed to load property %s for module %s", property.getName(), module.getName()));
-                                }
-                            }
-                        }
-                    }
-
-                    if (object.has("toggled")) {
-                        JsonElement toggled = object.get("toggled");
-                        if (toggled != null && toggled.isJsonPrimitive()) {
-                            module.setEnabled(toggled.getAsBoolean());
-                        }
-                    }
-
-                    if (object.has("key")) {
-                        JsonElement key = object.get("key");
-                        if (key != null && key.isJsonPrimitive()) {
-                            module.setKey(key.getAsInt());
-                        }
-                    }
-
-                    if (object.has("hidden")) {
-                        JsonElement hidden = object.get("hidden");
-                        if (hidden != null && hidden.isJsonPrimitive()) {
-                            module.setHidden(hidden.getAsBoolean());
-                        }
-                    }
-                }
-            }
+            JsonObject modulesObject = getModulesObject(jsonObject);
+            loadModules(modulesObject);
+            loadLists(jsonObject);
+            loadUi(jsonObject);
+            lastConfig = this.name;
             ChatUtil.sendFormatted(String.format("%sConfig has been loaded (&a&o%s&r)&r", Kereviz.clientName, file.getName()));
         } catch (FileNotFoundException e) {
             ChatUtil.sendFormatted(String.format("%sConfig file not found (&c&o%s&r)&r", Kereviz.clientName, file.getName()));
@@ -109,39 +76,207 @@ public class Config {
         }
     }
 
-    public void save() {
-        try {
-            if (!file.getParentFile().exists()) {
-                file.getParentFile().mkdirs();
-            }
+    private JsonObject getModulesObject(JsonObject jsonObject) {
+        JsonElement modules = jsonObject.get("modules");
+        return modules != null && modules.isJsonObject() ? modules.getAsJsonObject() : jsonObject;
+    }
 
-            JsonObject object = new JsonObject();
-            for (Module module : Kereviz.moduleManager.modules.values()) {
-                JsonObject moduleObject = new JsonObject();
-                moduleObject.addProperty("toggled", module.isEnabled());
-                moduleObject.addProperty("key", module.getKey());
-                moduleObject.addProperty("hidden", module.isHidden());
+    private void loadModules(JsonObject jsonObject) {
+        for (Module module : Kereviz.moduleManager.modules.values()) {
+            JsonElement moduleObj = jsonObject.get(module.getName());
+            if (moduleObj != null && moduleObj.isJsonObject()) {
+                JsonObject object = moduleObj.getAsJsonObject();
 
                 ArrayList<Property<?>> list = Kereviz.propertyManager.properties.get(module.getClass());
                 if (list != null) {
                     for (Property<?> property : list) {
-                        try {
-                            property.write(moduleObject);
-                        } catch (Exception e) {
-                            ((IAccessorMinecraft) mc).getLogger().warn(String.format("Failed to save property %s for module %s", property.getName(), module.getName()));
+                        if (object.has(property.getName())) {
+                            try {
+                                property.read(object);
+                                migrateKerevizAccent(module, property);
+                            } catch (Exception e) {
+                                ((IAccessorMinecraft) mc).getLogger().warn(String.format("Failed to load property %s for module %s", property.getName(), module.getName()));
+                            }
                         }
                     }
                 }
-                object.add(module.getName(), moduleObject);
+
+                if (object.has("toggled")) {
+                    JsonElement toggled = object.get("toggled");
+                    if (toggled != null && toggled.isJsonPrimitive()) {
+                        module.setEnabled(toggled.getAsBoolean());
+                    }
+                }
+
+                if (object.has("key")) {
+                    JsonElement key = object.get("key");
+                    if (key != null && key.isJsonPrimitive()) {
+                        module.setKey(key.getAsInt());
+                    }
+                }
+
+                if (object.has("hidden")) {
+                    JsonElement hidden = object.get("hidden");
+                    if (hidden != null && hidden.isJsonPrimitive()) {
+                        module.setHidden(hidden.getAsBoolean());
+                    }
+                }
+            }
+        }
+    }
+
+    public void save() {
+        try {
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
             }
 
-            PrintWriter printWriter = new PrintWriter(new FileWriter(file));
-            printWriter.println(gson.toJson(object));
-            printWriter.close();
+            JsonObject object = new JsonObject();
+            object.addProperty("format", FORMAT_VERSION);
+            object.addProperty("name", this.name);
+            object.addProperty("savedAt", System.currentTimeMillis());
+            object.addProperty("clientVersion", Kereviz.version == null ? "dev" : Kereviz.version);
+            object.add("modules", writeModules());
+            object.add("lists", writeLists());
+            object.add("ui", writeUi());
+
+            try (PrintWriter printWriter = new PrintWriter(new FileWriter(file))) {
+                printWriter.println(gson.toJson(object));
+            }
+            lastConfig = this.name;
             ChatUtil.sendFormatted(String.format("%sConfig has been saved (&a&o%s&r)&r", Kereviz.clientName, file.getName()));
         } catch (IOException e) {
             ((IAccessorMinecraft) mc).getLogger().error("Error saving config: " + e.getMessage());
             ChatUtil.sendFormatted(String.format("%sConfig couldn't be saved (&c&o%s&r)&r", Kereviz.clientName, file.getName()));
+        }
+    }
+
+    private JsonObject writeModules() {
+        JsonObject object = new JsonObject();
+        for (Module module : Kereviz.moduleManager.modules.values()) {
+            JsonObject moduleObject = new JsonObject();
+            moduleObject.addProperty("toggled", module.isEnabled());
+            moduleObject.addProperty("key", module.getKey());
+            moduleObject.addProperty("hidden", module.isHidden());
+
+            ArrayList<Property<?>> list = Kereviz.propertyManager.properties.get(module.getClass());
+            if (list != null) {
+                for (Property<?> property : list) {
+                    try {
+                        property.write(moduleObject);
+                    } catch (Exception e) {
+                        ((IAccessorMinecraft) mc).getLogger().warn(String.format("Failed to save property %s for module %s", property.getName(), module.getName()));
+                    }
+                }
+            }
+            object.add(module.getName(), moduleObject);
+        }
+        return object;
+    }
+
+    private JsonObject writeLists() {
+        JsonObject object = new JsonObject();
+        if (Kereviz.friendManager != null) {
+            object.add("friends", writePlayerList(Kereviz.friendManager));
+        }
+        if (Kereviz.targetManager != null) {
+            object.add("enemies", writePlayerList(Kereviz.targetManager));
+        }
+        return object;
+    }
+
+    private JsonArray writePlayerList(PlayerFileManager manager) {
+        JsonArray array = new JsonArray();
+        for (String player : manager.getPlayers()) {
+            if (player != null && !player.trim().isEmpty()) {
+                array.add(new JsonPrimitive(player.trim()));
+            }
+        }
+        return array;
+    }
+
+    private void loadLists(JsonObject jsonObject) {
+        JsonElement lists = jsonObject.get("lists");
+        if (lists == null || !lists.isJsonObject()) {
+            return;
+        }
+
+        JsonObject object = lists.getAsJsonObject();
+        loadPlayerList(object, "friends", Kereviz.friendManager);
+        loadPlayerList(object, "enemies", Kereviz.targetManager);
+    }
+
+    private void loadPlayerList(JsonObject object, String key, PlayerFileManager manager) {
+        if (manager == null || !object.has(key) || !object.get(key).isJsonArray()) {
+            return;
+        }
+
+        Set<String> uniquePlayers = new LinkedHashSet<>();
+        for (JsonElement element : object.getAsJsonArray(key)) {
+            if (element != null && element.isJsonPrimitive()) {
+                String player = element.getAsString().trim();
+                if (!player.isEmpty()) {
+                    uniquePlayers.add(player);
+                }
+            }
+        }
+
+        manager.players.clear();
+        manager.players.addAll(uniquePlayers);
+        manager.save();
+    }
+
+    private JsonObject writeUi() {
+        JsonObject object = new JsonObject();
+        object.add("menu", MenuConfig.toJson());
+
+        JsonObject clickGui = readJsonFile(ClientFiles.uiFile("clickgui.json"));
+        if (clickGui != null) {
+            object.add("clickGui", clickGui);
+        }
+        return object;
+    }
+
+    private void loadUi(JsonObject jsonObject) {
+        JsonElement ui = jsonObject.get("ui");
+        if (ui == null || !ui.isJsonObject()) {
+            return;
+        }
+
+        JsonObject object = ui.getAsJsonObject();
+        JsonElement menu = object.get("menu");
+        if (menu != null && menu.isJsonObject()) {
+            MenuConfig.readFrom(menu.getAsJsonObject());
+        }
+
+        JsonElement clickGui = object.get("clickGui");
+        if (clickGui != null && clickGui.isJsonObject()) {
+            writeJsonFile(ClientFiles.uiFile("clickgui.json"), clickGui.getAsJsonObject());
+        }
+    }
+
+    private JsonObject readJsonFile(File file) {
+        if (!file.exists()) {
+            return null;
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            JsonElement parsed = new JsonParser().parse(reader);
+            return parsed != null && parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void writeJsonFile(File file, JsonObject object) {
+        try {
+            if (file.getParentFile() != null && !file.getParentFile().exists()) {
+                file.getParentFile().mkdirs();
+            }
+            try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+                writer.println(gson.toJson(object));
+            }
+        } catch (IOException ignored) {
         }
     }
 

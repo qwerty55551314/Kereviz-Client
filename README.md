@@ -30,5 +30,7 @@ Use only on servers or worlds where this kind of client is allowed.
 ## Security Notes
 
 - The old custom `ssl.jks` truststore was removed. HTTPS now uses the normal JVM trust store.
-- Account tokens are stored locally in `.minecraft/kereviz.accounts.json` if you use the account manager.
+- Client runtime files are stored under `.minecraft/Kereviz Client/`.
+- Configs are stored in `.minecraft/Kereviz Client/configs/` and can be managed in-game with `.config list`, `.config save <name>`, `.config load <name>`, `.config rename <old> to <new>`, `.config delete <name>`, and `.config folder`.
+- Account tokens are stored locally in `.minecraft/Kereviz Client/accounts/kereviz.accounts.json` if you use the account manager.
 - No webhook, token exfiltration, or external command execution path is intentionally included.

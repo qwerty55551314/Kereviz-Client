@@ -1,5 +1,6 @@
 package kereviz.ui.impl.clickgui.rise;
 
+import kereviz.config.ClientFiles;
 import kereviz.config.Config;
 import kereviz.util.AnimationUtil;
 import kereviz.util.RenderUtil;
@@ -25,12 +26,9 @@ public class RiseCaSScreen {
 
     public void refresh() {
         userConfigs.clear();
-        File configDir = new File("./config/Kereviz/");
-        File[] files = configDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".json"));
-        if (files != null) {
-            for (File file : files) {
-                userConfigs.add(new ConfigCard(file.getName().substring(0, file.getName().length() - 5)));
-            }
+        File[] files = ClientFiles.listConfigFiles();
+        for (File file : files) {
+            userConfigs.add(new ConfigCard(ClientFiles.displayName(file)));
         }
 
         Collections.sort(userConfigs, new Comparator<ConfigCard>() {
@@ -133,8 +131,7 @@ public class RiseCaSScreen {
                     return true;
                 }
                 if (button == 1) {
-                    File file = new File("./config/Kereviz/", card.name + ".json");
-                    if (file.exists()) file.delete();
+                    ClientFiles.deleteConfig(card.name);
                     needsRefresh = true;
                     return true;
                 }

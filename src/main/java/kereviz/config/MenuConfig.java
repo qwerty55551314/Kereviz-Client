@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 public final class MenuConfig {
-    private static final File FILE = new File("./config/Kereviz/menu.json");
+    private static final File FILE = ClientFiles.uiFile("menu.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static boolean loaded;
     private static int backgroundIndex = 2;
@@ -72,6 +72,21 @@ public final class MenuConfig {
                 writer.println(GSON.toJson(object));
             }
         } catch (IOException ignored) {
+        }
+    }
+
+    public static synchronized JsonObject toJson() {
+        load();
+        JsonObject object = new JsonObject();
+        object.addProperty("backgroundIndex", clamp(backgroundIndex));
+        return object;
+    }
+
+    public static synchronized void readFrom(JsonObject object) {
+        if (object != null && object.has("backgroundIndex")) {
+            backgroundIndex = clamp(object.get("backgroundIndex").getAsInt());
+            loaded = true;
+            save();
         }
     }
 

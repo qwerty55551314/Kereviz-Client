@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import kereviz.command.CommandManager;
 import kereviz.command.commands.*;
+import kereviz.config.ClientFiles;
 import kereviz.config.Config;
 import kereviz.event.EventManager;
 import kereviz.font.FontManagers;
@@ -45,6 +46,7 @@ public class Kereviz {
     }
 
     public void init() {
+        ClientFiles.init();
         rotationManager = new RotationManager();
         floatManager = new FloatManager();
         blinkManager = new BlinkManager();

@@ -4,6 +4,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import kereviz.Kereviz;
+import kereviz.config.ClientFiles;
 import kereviz.font.FontProcess;
 import kereviz.module.Module;
 import kereviz.module.modules.*;
@@ -24,7 +25,7 @@ import java.util.List;
 public class ClickGui extends GuiScreen {
     CFontRenderer fontRenderer = FontProcess.getFont("sans");
     private static ClickGui instance;
-    private final File configFile = new File("./config/Kereviz/", "clickgui.txt");
+    private final File configFile = ClientFiles.uiFile("clickgui.json");
     private final ArrayList<CategoryComponent> categoryList;
 
     public ClickGui() {
@@ -325,6 +326,9 @@ public class ClickGui extends GuiScreen {
     }
 
     private void savePositions() {
+        if (configFile.getParentFile() != null && !configFile.getParentFile().exists()) {
+            configFile.getParentFile().mkdirs();
+        }
         JsonObject json = new JsonObject();
         for (CategoryComponent cat : categoryList) {
             JsonObject pos = new JsonObject();

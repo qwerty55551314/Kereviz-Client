@@ -3,6 +3,7 @@ package kereviz.module.modules;
 import kereviz.event.EventTarget;
 import kereviz.event.types.EventType;
 import kereviz.event.types.Priority;
+import kereviz.events.MoveInputEvent;
 import kereviz.events.TickEvent;
 import kereviz.events.UpdateEvent;
 import kereviz.mixin.IAccessorPlayerControllerMP;
@@ -21,6 +22,7 @@ import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.play.client.C03PacketPlayer;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
@@ -56,6 +58,7 @@ public class MLG extends Module {
     private PlacementTarget pendingTarget;
     private LadderPlan ladderPlan;
     private int placeCooldown;
+    private int stickTicks;
 
     public MLG() {
         super("MLG", false, false, "Places water or a block-ladder clutch below you while falling.");
@@ -108,8 +111,20 @@ public class MLG extends Module {
         if (this.placeCooldown > 0) {
             this.placeCooldown--;
         }
+        if (this.stickTicks > 0) {
+            this.stickTicks--;
+        }
         if (mc.thePlayer != null && (mc.thePlayer.onGround || mc.thePlayer.isInWater() || mc.thePlayer.isInLava())) {
             this.resetRuntime();
+        }
+    }
+
+    @EventTarget(Priority.HIGHEST)
+    public void onMoveInput(MoveInputEvent event) {
+        if (this.isEnabled() && this.stickTicks > 0 && mc.thePlayer != null && mc.currentScreen == null) {
+            mc.thePlayer.movementInput.sneak = true;
+            mc.thePlayer.movementInput.moveForward *= 0.3F;
+            mc.thePlayer.movementInput.moveStrafe *= 0.3F;
         }
     }
 
@@ -195,10 +210,13 @@ public class MLG extends Module {
             if (ladderTarget == null) {
                 return null;
             }
-            return new LadderCandidate(plan, ladderTarget, ladderTarget.score + this.scoreLadderPosition(ladderPos, false));
+            return new LadderCandidate(plan, ladderTarget, ladderTarget.score + this.scoreLadderPosition(ladderPos, backingPos, false));
         }
 
         if (blockSlot == -1 || !this.isBlockSpacePlaceable(backingPos)) {
+            return null;
+        }
+        if (!this.isSafeLadderBacking(ladderPos, backingPos)) {
             return null;
         }
 
@@ -219,7 +237,7 @@ public class MLG extends Module {
         if (blockTarget == null) {
             return null;
         }
-        return new LadderCandidate(plan, blockTarget, blockTarget.score + this.scoreLadderPosition(ladderPos, true));
+        return new LadderCandidate(plan, blockTarget, blockTarget.score + this.scoreLadderPosition(ladderPos, backingPos, true));
     }
 
     private PlacementTarget nextLadderTarget(UpdateEvent event, LadderPlan plan) {
@@ -246,12 +264,13 @@ public class MLG extends Module {
         return this.getPlacementAimTarget(event, plan.backingPos, plan.ladderFacing, plan.ladderSlot, ActionType.LADDER, plan);
     }
 
-    private double scoreLadderPosition(BlockPos ladderPos, boolean needsBlock) {
-        double predictedX = mc.thePlayer.posX + mc.thePlayer.motionX * 1.5D;
-        double predictedZ = mc.thePlayer.posZ + mc.thePlayer.motionZ * 1.5D;
+    private double scoreLadderPosition(BlockPos ladderPos, BlockPos backingPos, boolean needsBlock) {
+        double predictedX = mc.thePlayer.posX + mc.thePlayer.motionX * 2.0D;
+        double predictedZ = mc.thePlayer.posZ + mc.thePlayer.motionZ * 2.0D;
         double dx = ((double) ladderPos.getX() + 0.5D) - predictedX;
         double dz = ((double) ladderPos.getZ() + 0.5D) - predictedZ;
-        return Math.sqrt(dx * dx + dz * dz) * 6.0D + (needsBlock ? 4.0D : 0.0D);
+        double clearance = this.horizontalClearanceToBlock(predictedX, predictedZ, backingPos);
+        return Math.sqrt(dx * dx + dz * dz) * 10.0D + Math.max(0.0D, 0.5D - clearance) * 30.0D + (needsBlock ? 4.0D : 0.0D);
     }
 
     private List<BlockPos> collectGroundSupports() {
@@ -260,7 +279,7 @@ public class MLG extends Module {
         int startY = MathHelper.floor_double(mc.thePlayer.posY) - 1;
         int minY = Math.max(0, startY - this.scanDepth.getValue());
 
-        for (double[] column : this.getSampleColumns()) {
+        for (double[] column : this.getLadderColumns()) {
             int x = MathHelper.floor_double(column[0]);
             int z = MathHelper.floor_double(column[1]);
             for (int y = startY; y >= minY; y--) {
@@ -300,6 +319,20 @@ public class MLG extends Module {
             }
         }
         return ladderPositions;
+    }
+
+    private double[][] getLadderColumns() {
+        double currentX = mc.thePlayer.posX;
+        double currentZ = mc.thePlayer.posZ;
+        double motionX = mc.thePlayer.motionX;
+        double motionZ = mc.thePlayer.motionZ;
+
+        return new double[][]{
+                {currentX + motionX * 2.25D, currentZ + motionZ * 2.25D},
+                {currentX + motionX * 1.5D, currentZ + motionZ * 1.5D},
+                {currentX + motionX * 0.75D, currentZ + motionZ * 0.75D},
+                {currentX, currentZ}
+        };
     }
 
     private double[][] getSampleColumns() {
@@ -489,8 +522,12 @@ public class MLG extends Module {
             if (placed || this.isStableSupport(target.plan.backingPos)) {
                 target.plan.blockPlaced = true;
                 PlacementTarget ladderTarget = this.getImmediateLadderTarget(target.plan);
+                if (ladderTarget != null) {
+                    this.sendSilentLook(ladderTarget);
+                }
                 if (ladderTarget != null && this.placeBlockLike(ladderTarget)) {
                     this.placeCooldown = Math.max(1, this.placeDelay.getValue());
+                    this.stickTicks = 6;
                     this.ladderPlan = null;
                 }
             }
@@ -500,6 +537,7 @@ public class MLG extends Module {
         if (target.action == ActionType.LADDER && target.plan != null) {
             if (placed || this.isLadderAt(target.plan.ladderPos)) {
                 this.placeCooldown = Math.max(1, this.placeDelay.getValue());
+                this.stickTicks = 6;
                 this.ladderPlan = null;
             }
         } else if (placed) {
@@ -536,10 +574,20 @@ public class MLG extends Module {
             return null;
         }
 
+        Vec3 eyes = mc.thePlayer.getPositionEyes(1.0F);
+        float[] rotations = RotationUtil.getRotationsTo(
+                hitVec.xCoord - eyes.xCoord,
+                hitVec.yCoord - eyes.yCoord,
+                hitVec.zCoord - eyes.zCoord,
+                mc.thePlayer.rotationYaw,
+                mc.thePlayer.rotationPitch
+        );
+        rotations = RotationUtil.gcd(rotations, new float[]{mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch});
+
         PlacementTarget target = new PlacementTarget(
                 ActionType.LADDER,
-                mc.thePlayer.rotationYaw,
-                mc.thePlayer.rotationPitch,
+                rotations[0],
+                rotations[1],
                 plan.ladderSlot,
                 0.0F,
                 plan
@@ -548,6 +596,10 @@ public class MLG extends Module {
         target.facing = plan.ladderFacing;
         target.hitVec = hitVec;
         return target;
+    }
+
+    private void sendSilentLook(PlacementTarget target) {
+        PacketUtil.sendPacket(new C03PacketPlayer.C05PacketPlayerLook(target.yaw, target.pitch, mc.thePlayer.onGround));
     }
 
     private boolean placeBlockLike(final PlacementTarget target) {
@@ -716,6 +768,52 @@ public class MLG extends Module {
         return !material.isLiquid() && BlockUtil.isReplaceable(blockPos);
     }
 
+    private boolean isSafeLadderBacking(BlockPos ladderPos, BlockPos backingPos) {
+        double halfWidth = (double) mc.thePlayer.width / 2.0D + 0.06D;
+        double[][] checkpoints = new double[][]{
+                {mc.thePlayer.posX, mc.thePlayer.posZ},
+                {mc.thePlayer.posX + mc.thePlayer.motionX * 1.0D, mc.thePlayer.posZ + mc.thePlayer.motionZ * 1.0D},
+                {mc.thePlayer.posX + mc.thePlayer.motionX * 2.0D, mc.thePlayer.posZ + mc.thePlayer.motionZ * 2.0D},
+                {mc.thePlayer.posX + mc.thePlayer.motionX * 3.0D, mc.thePlayer.posZ + mc.thePlayer.motionZ * 3.0D}
+        };
+
+        for (double[] checkpoint : checkpoints) {
+            if (!this.isNearLadderColumn(checkpoint[0], checkpoint[1], ladderPos)) {
+                continue;
+            }
+            if (this.horizontalAabbIntersectsBlock(checkpoint[0], checkpoint[1], halfWidth, backingPos)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isNearLadderColumn(double x, double z, BlockPos ladderPos) {
+        return x >= (double) ladderPos.getX() - 0.2D
+                && x <= (double) ladderPos.getX() + 1.2D
+                && z >= (double) ladderPos.getZ() - 0.2D
+                && z <= (double) ladderPos.getZ() + 1.2D;
+    }
+
+    private boolean horizontalAabbIntersectsBlock(double x, double z, double halfWidth, BlockPos blockPos) {
+        double minX = x - halfWidth;
+        double maxX = x + halfWidth;
+        double minZ = z - halfWidth;
+        double maxZ = z + halfWidth;
+        return maxX > (double) blockPos.getX()
+                && minX < (double) blockPos.getX() + 1.0D
+                && maxZ > (double) blockPos.getZ()
+                && minZ < (double) blockPos.getZ() + 1.0D;
+    }
+
+    private double horizontalClearanceToBlock(double x, double z, BlockPos blockPos) {
+        double clampedX = Math.max((double) blockPos.getX(), Math.min(x, (double) blockPos.getX() + 1.0D));
+        double clampedZ = Math.max((double) blockPos.getZ(), Math.min(z, (double) blockPos.getZ() + 1.0D));
+        double dx = x - clampedX;
+        double dz = z - clampedZ;
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
     private boolean isLadderAt(BlockPos pos) {
         return pos.getY() >= 0 && pos.getY() <= 255 && mc.theWorld.getBlockState(pos).getBlock() == Blocks.ladder;
     }
@@ -728,6 +826,7 @@ public class MLG extends Module {
         this.pendingTarget = null;
         this.ladderPlan = null;
         this.placeCooldown = 0;
+        this.stickTicks = 0;
     }
 
     @Override

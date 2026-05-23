@@ -59,8 +59,9 @@ public class Config {
             }
 
             JsonObject jsonObject = parsed.getAsJsonObject();
+            boolean legacyMigration = this.shouldRunLegacyMigration(jsonObject);
             JsonObject modulesObject = getModulesObject(jsonObject);
-            loadModules(modulesObject);
+            loadModules(modulesObject, legacyMigration);
             loadLists(jsonObject);
             loadUi(jsonObject);
             lastConfig = this.name;
@@ -81,7 +82,19 @@ public class Config {
         return modules != null && modules.isJsonObject() ? modules.getAsJsonObject() : jsonObject;
     }
 
-    private void loadModules(JsonObject jsonObject) {
+    private boolean shouldRunLegacyMigration(JsonObject jsonObject) {
+        JsonElement format = jsonObject.get("format");
+        if (format == null || !format.isJsonPrimitive()) {
+            return true;
+        }
+        try {
+            return format.getAsInt() < FORMAT_VERSION;
+        } catch (Exception ignored) {
+            return true;
+        }
+    }
+
+    private void loadModules(JsonObject jsonObject, boolean legacyMigration) {
         for (Module module : Kereviz.moduleManager.modules.values()) {
             JsonElement moduleObj = jsonObject.get(module.getName());
             if (moduleObj == null && "MLG".equals(module.getName())) {
@@ -96,7 +109,9 @@ public class Config {
                         if (object.has(property.getName())) {
                             try {
                                 property.read(object);
-                                migrateKerevizAccent(module, property);
+                                if (legacyMigration) {
+                                    migrateKerevizAccent(module, property);
+                                }
                             } catch (Exception e) {
                                 ((IAccessorMinecraft) mc).getLogger().warn(String.format("Failed to load property %s for module %s", property.getName(), module.getName()));
                             }

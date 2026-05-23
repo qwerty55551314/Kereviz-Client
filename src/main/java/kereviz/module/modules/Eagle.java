@@ -23,12 +23,11 @@ import net.minecraft.util.Vec3;
 import org.apache.commons.lang3.RandomUtils;
 import org.lwjgl.input.Keyboard;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Objects;
 
 public class Eagle extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
+    private static final int VANILLA_PLACE_DELAY = 4;
     private static final double[] PLACE_OFFSETS = new double[]{
             0.03125, 0.09375, 0.15625, 0.21875,
             0.28125, 0.34375, 0.40625, 0.46875,
@@ -38,6 +37,8 @@ public class Eagle extends Module {
 
     private int sneakDelay = 0;
     private int placeDelay = 0;
+    private BlockData pendingBlockData = null;
+    private Vec3 pendingHitVec = null;
     public final IntProperty minDelay = new IntProperty("min-delay", 2, 0, 10);
     public final IntProperty maxDelay = new IntProperty("max-delay", 3, 0, 10);
     public final BooleanProperty directionCheck = new BooleanProperty("direction-check", true);
@@ -56,20 +57,16 @@ public class Eagle extends Module {
         if (!this.silentAim.getValue() || mc.thePlayer == null || mc.theWorld == null || mc.currentScreen != null) {
             return false;
         }
-        if (this.directionCheck.getValue() && mc.gameSettings.keyBindForward.isKeyDown()) {
-            return false;
-        }
         if (this.jumpCheck.getValue() && mc.gameSettings.keyBindJump.isKeyDown()) {
-            return false;
-        }
-        if (this.sneakOnly.getValue() && !Keyboard.isKeyDown(mc.gameSettings.keyBindSneak.getKeyCode())) {
             return false;
         }
         return mc.thePlayer.onGround && MoveUtil.isForwardPressed() && ItemUtil.isHoldingBlock() && this.canMoveSafely();
     }
 
     private boolean shouldSneak() {
-        if (this.directionCheck.getValue() && mc.gameSettings.keyBindForward.isKeyDown()) {
+        if (this.silentAim.getValue()) {
+            return false;
+        } else if (this.directionCheck.getValue() && mc.gameSettings.keyBindForward.isKeyDown()) {
             return false;
         } else if (this.jumpCheck.getValue() && mc.gameSettings.keyBindJump.isKeyDown()) {
             return false;
@@ -95,74 +92,28 @@ public class Eagle extends Module {
         );
     }
 
-    private EnumFacing getBestFacing(BlockPos support, BlockPos target) {
-        double bestDistance = 0.0;
-        EnumFacing bestFacing = null;
-        for (EnumFacing facing : EnumFacing.VALUES) {
-            if (facing == EnumFacing.DOWN) {
-                continue;
-            }
-            BlockPos placePos = support.offset(facing);
-            if (placePos.getY() <= target.getY()) {
-                double distance = placePos.distanceSqToCenter(
-                        (double) target.getX() + 0.5,
-                        (double) target.getY() + 0.5,
-                        (double) target.getZ() + 0.5
-                );
-                if (bestFacing == null || distance < bestDistance || distance == bestDistance && facing == EnumFacing.UP) {
-                    bestDistance = distance;
-                    bestFacing = facing;
-                }
-            }
-        }
-        return bestFacing;
-    }
-
     private BlockData getBlockData() {
         BlockPos targetPos = this.getPlaceTargetPos();
         if (!BlockUtil.isReplaceable(targetPos)) {
             return null;
         }
 
-        ArrayList<BlockPos> supports = new ArrayList<>();
-        for (int x = -3; x <= 3; x++) {
-            for (int y = -3; y <= 0; y++) {
-                for (int z = -3; z <= 3; z++) {
-                    BlockPos support = targetPos.add(x, y, z);
-                    if (BlockUtil.isReplaceable(support)
-                            || BlockUtil.isInteractable(support)
-                            || mc.thePlayer.getDistance(
-                            (double) support.getX() + 0.5,
-                            (double) support.getY() + 0.5,
-                            (double) support.getZ() + 0.5
-                    ) > (double) mc.playerController.getBlockReachDistance()) {
-                        continue;
-                    }
-
-                    for (EnumFacing facing : EnumFacing.VALUES) {
-                        if (facing != EnumFacing.DOWN && BlockUtil.isReplaceable(support.offset(facing))) {
-                            supports.add(support);
-                            break;
-                        }
-                    }
-                }
+        for (EnumFacing facing : EnumFacing.VALUES) {
+            if (facing == EnumFacing.DOWN) {
+                continue;
+            }
+            BlockPos support = targetPos.offset(facing.getOpposite());
+            if (!BlockUtil.isReplaceable(support)
+                    && !BlockUtil.isInteractable(support)
+                    && mc.thePlayer.getDistance(
+                    (double) support.getX() + 0.5,
+                    (double) support.getY() + 0.5,
+                    (double) support.getZ() + 0.5
+            ) <= (double) mc.playerController.getBlockReachDistance()) {
+                return new BlockData(support, facing);
             }
         }
-
-        if (supports.isEmpty()) {
-            return null;
-        }
-
-        supports.sort(Comparator.comparingDouble(
-                pos -> pos.distanceSqToCenter(
-                        (double) targetPos.getX() + 0.5,
-                        (double) targetPos.getY() + 0.5,
-                        (double) targetPos.getZ() + 0.5
-                )
-        ));
-        BlockPos support = supports.get(0);
-        EnumFacing facing = this.getBestFacing(support, targetPos);
-        return facing == null ? null : new BlockData(support, facing);
+        return null;
     }
 
     private AimData getAimData(UpdateEvent event, BlockData blockData) {
@@ -217,7 +168,7 @@ public class Eagle extends Module {
         return best;
     }
 
-    private void place(BlockData blockData, Vec3 hitVec) {
+    private boolean place(BlockData blockData, Vec3 hitVec) {
         if (ItemUtil.isHoldingBlock()
                 && mc.playerController.onPlayerRightClick(
                 mc.thePlayer,
@@ -228,15 +179,28 @@ public class Eagle extends Module {
                 hitVec
         )) {
             mc.thePlayer.swingItem();
+            return true;
         }
+        return false;
     }
 
     @EventTarget(Priority.HIGH)
     public void onUpdate(UpdateEvent event) {
-        if (!this.isEnabled() || event.getType() != EventType.PRE) {
+        if (!this.isEnabled()) {
             return;
         }
 
+        if (event.getType() == EventType.POST) {
+            this.placePendingBlock();
+            return;
+        }
+
+        if (event.getType() != EventType.PRE) {
+            return;
+        }
+
+        this.pendingBlockData = null;
+        this.pendingHitVec = null;
         if (this.placeDelay > 0) {
             this.placeDelay--;
         }
@@ -257,14 +221,26 @@ public class Eagle extends Module {
 
         event.setRotation(aimData.yaw, aimData.pitch, 2);
         if (this.placeDelay <= 0) {
-            this.place(blockData, aimData.hitVec);
-            this.placeDelay = RandomUtils.nextInt(this.minDelay.getValue(), this.maxDelay.getValue() + 1);
+            this.pendingBlockData = blockData;
+            this.pendingHitVec = aimData.hitVec;
         }
+    }
+
+    private void placePendingBlock() {
+        if (!this.silentAim.getValue() || this.pendingBlockData == null || this.pendingHitVec == null) {
+            return;
+        }
+
+        if (this.place(this.pendingBlockData, this.pendingHitVec)) {
+            this.placeDelay = VANILLA_PLACE_DELAY;
+        }
+        this.pendingBlockData = null;
+        this.pendingHitVec = null;
     }
 
     @EventTarget(Priority.LOWEST)
     public void onTick(TickEvent event) {
-        if (this.isEnabled() && event.getType() == EventType.PRE) {
+        if (this.isEnabled() && !this.silentAim.getValue() && event.getType() == EventType.PRE) {
             if (this.sneakDelay > 0) {
                 this.sneakDelay--;
             }
@@ -276,7 +252,7 @@ public class Eagle extends Module {
 
     @EventTarget(Priority.LOWEST)
     public void onMoveInput(MoveInputEvent event) {
-        if (this.isEnabled() && mc.currentScreen == null) {
+        if (this.isEnabled() && !this.silentAim.getValue() && mc.currentScreen == null) {
 
             if (sneakOnly.getValue() && Keyboard.isKeyDown(mc.gameSettings.keyBindSneak.getKeyCode()) && shouldSneak()) {
                 mc.thePlayer.movementInput.sneak = false;
@@ -298,6 +274,8 @@ public class Eagle extends Module {
     public void onDisabled() {
         this.sneakDelay = 0;
         this.placeDelay = 0;
+        this.pendingBlockData = null;
+        this.pendingHitVec = null;
     }
 
     @Override

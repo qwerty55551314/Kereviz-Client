@@ -46,8 +46,8 @@ public class Eagle extends Module {
     public final BooleanProperty blocksOnly = new BooleanProperty("blocks-only", true);
     public final BooleanProperty sneakOnly = new BooleanProperty("sneaking-only", false);
     public final BooleanProperty silentAim = new BooleanProperty("silent-aim", false);
-    public final IntProperty silentAngle = new IntProperty("silent-angle", 50, 10, 90, () -> this.silentAim.getValue());
-    public final IntProperty silentStep = new IntProperty("silent-step", 45, 10, 90, () -> this.silentAim.getValue());
+    public final IntProperty silentAngle = new IntProperty("silent-angle", 360, 10, 360, () -> this.silentAim.getValue());
+    public final IntProperty silentStep = new IntProperty("silent-step", 180, 10, 180, () -> this.silentAim.getValue());
 
     public Eagle() {
         super("Eagle", false);
@@ -65,11 +65,7 @@ public class Eagle extends Module {
         if (this.jumpCheck.getValue() && mc.gameSettings.keyBindJump.isKeyDown()) {
             return false;
         }
-        if (this.pitchCheck.getValue() && mc.thePlayer.rotationPitch < 45.0F) {
-            return false;
-        }
         return mc.thePlayer.onGround
-                && mc.gameSettings.keyBindUseItem.isKeyDown()
                 && MoveUtil.isForwardPressed()
                 && ItemUtil.isHoldingBlock()
                 && this.canMoveSafely();

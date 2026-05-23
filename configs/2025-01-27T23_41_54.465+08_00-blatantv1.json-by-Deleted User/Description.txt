@@ -1,0 +1,10 @@
+blatantv1: blatant config
+blatantbs: blatant config to use w raven (without noslow and velocity, use raven antiknockback and raven float noslow)
+
+do .b list to see binds ( [removed external link] merge binds / bind configs mod)
+
+use invmove, [removed external link] and [removed external link] on raven also can use [removed external link]
+
+if you're using raven, use [removed external link] , bind the script to your longjump bind **to disable airvelo and velocity when using longjump**
+
+extra: kereviz tnt fly for capturethewool [removed external link] bind the script, put tnt down and press your bind: [showcase]([removed external link] / [removed external link]

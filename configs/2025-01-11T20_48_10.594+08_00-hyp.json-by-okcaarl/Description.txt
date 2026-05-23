@@ -1,0 +1,3 @@
+** Blatant Bedwars Config**
+.b l for binds
+ version Kereviz-241222

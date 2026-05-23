@@ -84,6 +84,9 @@ public class Config {
     private void loadModules(JsonObject jsonObject) {
         for (Module module : Kereviz.moduleManager.modules.values()) {
             JsonElement moduleObj = jsonObject.get(module.getName());
+            if (moduleObj == null && "MLG".equals(module.getName())) {
+                moduleObj = jsonObject.get("WaterMLG");
+            }
             if (moduleObj != null && moduleObj.isJsonObject()) {
                 JsonObject object = moduleObj.getAsJsonObject();
 

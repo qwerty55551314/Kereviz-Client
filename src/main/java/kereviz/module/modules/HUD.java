@@ -27,11 +27,11 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
 
 public class HUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-    private List<Module> activeModules = new ArrayList<>();
+    private final List<Module> activeModules = new ArrayList<>();
+    private final Comparator<Module> moduleWidthComparator = (first, second) -> Integer.compare(this.getModuleWidth(second), this.getModuleWidth(first));
     public final ModeProperty colorMode = new ModeProperty(
             "color", 3, new String[]{"RAINBOW", "CHROMA", "ASTOLFO", "CUSTOM1", "CUSTOM12", "CUSTOM123"}
     );
@@ -233,7 +233,13 @@ public class HUD extends Module {
     @EventTarget
     public void onTick(TickEvent event) {
         if (this.isEnabled() && event.getType() == EventType.POST) {
-            this.activeModules = Kereviz.moduleManager.modules.values().stream().filter(module -> module.isEnabled() && !module.isHidden()).sorted(Comparator.comparingInt(this::getModuleWidth).reversed()).collect(Collectors.<Module>toList());
+            this.activeModules.clear();
+            for (Module module : Kereviz.moduleManager.modules.values()) {
+                if (module.isEnabled() && !module.isHidden()) {
+                    this.activeModules.add(module);
+                }
+            }
+            this.activeModules.sort(this.moduleWidthComparator);
         }
     }
 

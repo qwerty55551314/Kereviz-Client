@@ -17,12 +17,13 @@ import kereviz.property.properties.IntProperty;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.Vec3;
 
 import java.awt.*;
-import java.util.stream.Collectors;
+import java.util.List;
 
 public class Tracers extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
@@ -130,7 +131,15 @@ public class Tracers extends Module {
                         );
             }
             position = new Vec3(position.xCoord, position.yCoord + (double) mc.getRenderViewEntity().getEyeHeight(), position.zCoord);
-            for (EntityPlayer player : TeamUtil.getLoadedEntitiesSorted().stream().filter(entity -> entity instanceof EntityPlayer && this.shouldRender((EntityPlayer) entity)).map(EntityPlayer.class::cast).collect(Collectors.toList())) {
+            List<Entity> loadedEntities = TeamUtil.getLoadedEntitiesSorted();
+            for (Entity entity : loadedEntities) {
+                if (!(entity instanceof EntityPlayer)) {
+                    continue;
+                }
+                EntityPlayer player = (EntityPlayer) entity;
+                if (!this.shouldRender(player)) {
+                    continue;
+                }
                 Color color = this.getEntityColor(player, (float) this.opacity.getValue() / 100.0F);
                 double x = RenderUtil.lerpDouble(player.posX, player.lastTickPosX, event.getPartialTicks());
                 double y = RenderUtil.lerpDouble(player.posY, player.lastTickPosY, event.getPartialTicks()) - (player.isSneaking() ? 0.125 : 0.0);
@@ -154,7 +163,20 @@ public class Tracers extends Module {
     @EventTarget
     public void onRender(Render2DEvent event) {
         if (this.isEnabled() && this.drawArrows.getValue()) {
-            for (EntityPlayer player : TeamUtil.getLoadedEntitiesSorted().stream().filter(entity -> entity instanceof EntityPlayer && this.shouldRender((EntityPlayer) entity)).map(EntityPlayer.class::cast).collect(Collectors.toList())) {
+            HUD hud = (HUD) Kereviz.moduleManager.modules.get(HUD.class);
+            float hudScale = hud.scale.getValue();
+            ScaledResolution scaledResolution = new ScaledResolution(mc);
+            float centerX = (float) scaledResolution.getScaledWidth() / 2.0F / hudScale;
+            float centerY = (float) scaledResolution.getScaledHeight() / 2.0F / hudScale;
+            List<Entity> loadedEntities = TeamUtil.getLoadedEntitiesSorted();
+            for (Entity entity : loadedEntities) {
+                if (!(entity instanceof EntityPlayer)) {
+                    continue;
+                }
+                EntityPlayer player = (EntityPlayer) entity;
+                if (!this.shouldRender(player)) {
+                    continue;
+                }
                 float yawBetween = RotationUtil.getYawBetween(
                         RenderUtil.lerpDouble(mc.thePlayer.posX, mc.thePlayer.prevPosX, event.getPartialTicks()),
                         RenderUtil.lerpDouble(mc.thePlayer.posZ, mc.thePlayer.prevPosZ, event.getPartialTicks()),
@@ -173,12 +195,11 @@ public class Tracers extends Module {
                 } else if (yawBetween < 60.0F) {
                     opacity *= (yawBetween - 30.0F) / 30.0F;
                 }
-                HUD hud = (HUD) Kereviz.moduleManager.modules.get(HUD.class);
                 GlStateManager.pushMatrix();
-                GlStateManager.scale(hud.scale.getValue(), hud.scale.getValue(), 0.0F);
+                GlStateManager.scale(hudScale, hudScale, 0.0F);
                 GlStateManager.translate(
-                        (float) new ScaledResolution(mc).getScaledWidth() / 2.0F / hud.scale.getValue(),
-                        (float) new ScaledResolution(mc).getScaledHeight() / 2.0F / hud.scale.getValue(),
+                        centerX,
+                        centerY,
                         0.0F
                 );
                 GlStateManager.pushMatrix();

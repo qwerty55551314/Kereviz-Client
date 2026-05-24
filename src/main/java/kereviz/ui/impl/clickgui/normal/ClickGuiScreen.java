@@ -140,6 +140,7 @@ public class ClickGuiScreen extends GuiScreen {
                 Kereviz.moduleManager.getModule(NickHider.class),
                 Kereviz.moduleManager.getModule(AntiObbyTrap.class),
                 Kereviz.moduleManager.getModule(AntiObfuscate.class),
+                Kereviz.moduleManager.getModule(AnticheatDetector.class),
                 Kereviz.moduleManager.getModule(AutoAnduril.class),
                 Kereviz.moduleManager.getModule(InventoryClicker.class),
                 Kereviz.moduleManager.getModule(Disabler.class),

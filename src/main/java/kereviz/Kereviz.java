@@ -75,6 +75,7 @@ public class Kereviz {
         moduleManager.modules.put(AntiFireball.class, new AntiFireball());
         moduleManager.modules.put(AntiObbyTrap.class, new AntiObbyTrap());
         moduleManager.modules.put(AntiObfuscate.class, new AntiObfuscate());
+        moduleManager.modules.put(AnticheatDetector.class, new AnticheatDetector());
         moduleManager.modules.put(AntiVoid.class, new AntiVoid());
         moduleManager.modules.put(AutoClicker.class, new AutoClicker());
         moduleManager.modules.put(AutoAnduril.class, new AutoAnduril());

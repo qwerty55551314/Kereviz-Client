@@ -132,6 +132,7 @@ public class ClickGui extends GuiScreen {
         miscModules.add(Kereviz.moduleManager.getModule(NickHider.class));
         miscModules.add(Kereviz.moduleManager.getModule(AntiObbyTrap.class));
         miscModules.add(Kereviz.moduleManager.getModule(AntiObfuscate.class));
+        miscModules.add(Kereviz.moduleManager.getModule(AnticheatDetector.class));
         miscModules.add(Kereviz.moduleManager.getModule(AutoAnduril.class));
         miscModules.add(Kereviz.moduleManager.getModule(InventoryClicker.class));
         miscModules.add(Kereviz.moduleManager.getModule(Disabler.class));

@@ -77,6 +77,7 @@ public class RiseClickGUI extends GuiScreen {
         map(Tab.DISCORD, "RichPresence", "DiscordRPC", "DiscordRichPresence");
         map(Tab.EXPLOIT, "Disabler", "ClientSpoofer", "NoRotate", "AntiObfuscate", "Blink", "Timer",
                 "TimerRangev999", "AntiVoid", "FakeLag", "GhostHand", "BedNuker", "BedTracker");
+        map(Tab.MISC, "AnticheatDetector", "AntiCheatDetector");
     }
 
     private float windowX = -1f;
